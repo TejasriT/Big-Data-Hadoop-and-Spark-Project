@@ -1,0 +1,110 @@
+al df1 = spark.read.option("header",True)\csv("/user/tejasiri555_yahoo/Market_analysis_data.csv")
+ spark.read.options(header='True', inferSchema='True', delimiter=',') \ .csv("/user/tejasiri555_yahoo/Market_analysis_data.csv")
+spark.read.option("inferSchema",True) \ .option("delimiter",";") \ .csv("/user/tejasiri555_yahoo/Market_analysis_data.csv")
+spark.read.csv("/user/tejasiri555_yahoo/Market_analysis_data.csv", header=True, mode="DROPMALFORMED", schema=schema)
+scSpark.read.csv("/user/tejasiri555_yahoo/Market_analysis_data.csv", header=True, inferSchema = True)
+spark.read.csv("/user/tejasiri555_yahoo/Market_analysis_data.csv", escape='"', multiLine=True, inferSchema=False, header=True)
+=============================================================================================
+
+•	scala>  val bank_data = spark.read.option("multiline","true").json("/user/tejasiri555_yahoo/bank_edited.json");
+Output:
+bank_data: org.apache.spark.sql.DataFrame = [age: bigint, balance: bigint ... 15 more fields]
+•	scala> bank_data.show()
+Output:
+•	scala> bank_data.registerTempTable("datatable")
+Give marketing success rate (No. of people subscribed / total no. of entries)   
+**********************************************************************************
+•	scala> val count_subscribed = spark.sql("select count(*) from datatable where y='yes'")
+scala> count_subscribed.show()
+
+Output:
++--------+                                                                      
+|count(1)|
++--------+
+|    5289|
++--------+
+
+val sub = count_subscribed.withColumnRenamed("count(1)","sub")
+
+•	scala> val total = spark.sql("select count(*) from datatable")
+scala> total.show()
+Output:
++--------+                                                                      
+|count(1)|
++--------+
+|   45211|
++--------+
+
+val tot = tot.withColumnRenamed("count(1)","tot")
+
+sub.registerTempTable("sub")
+tot.registerTempTable("tot")
+
+val success_rate = spark.sqlContext.sql("select ((s.sub/t.tot)*100) from (select * from sub) s,(select * from tot) t");
+
+Give the maximum, mean, and minimum age of the average targeted customer
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bank_data.select(max($"age")).show() - 95
+bank_data.select(avg($"age")).show() - 40
+bank_data.select(min($"age")).show() - 18
+
+Check the quality of customers by checking average balance, median balance of customers
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+bank_people_data.select(avg($"balance")).show()  - 1362.27
+val median = spark.sql("SELECT percentile_approx(balance, 0.5) FROM datatable").show() 
+
+Check if age matters in marketing subscription for deposit
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+val agedata = spark.sql("select age, count(*) as number from datatable where y='yes' group by age order by number desc")
+agedata.show()
+
+Check if marital status mattered for a subscription to deposit
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+val maritaldata = spark.sql("select marital, count(*) as number from datatable where y='yes' group by marital order by number desc")
+maritaldata.show()
+
+Check if age and marital status together mattered for a subscription to deposit scheme
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+val ageandmaritaldata = spark.sql("select age, marital, count(*) as number from datatable where y='yes' group by age,marital order by number desc")
+ageandmaritaldata.show()
+
+Do feature engineering for the bank and find the right age effect on the campaign.
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+val agedata = spark.udf.register("agedata",(age:Int) => {
+if (age < 20)
+"Teen"
+else if (age > 20 && age <= 32)
+"Young"
+else if (age > 33 && age <= 55)
+"Middle Aged"
+else
+"old"
+})
+
+//Replacing the old age column with the new age column
+
+val banknewDF = bank_people_data.withColumn("age",agedata(bank_people_data("age")))
+banknewDF.show()
+
+banknewDF.registerTempTable("banknewtable")
+
+//which age group subscribed the most
+
+val targetage = spark.sql("select age, count(*) as number from banknewtable where y='yes' group by age order by number desc")
+targetage.show()
+
+//pipelining with string Indexer
+
+val agedata2 = new StringIndexer().setInputCol("age").setOutputCol("ageindex")
+
+//Fitting the model
+
+var strindModel = agedata2.fit(banknewDF)
+
+//assigns generated value of index of the column, by feature engineering
+
+strindModel.transform(banknewDF).select("age","ageIndex").show(5)
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+val df = spark.sqlContext.read.option("multiline","true").json("/user/tejasiri555_yahoo/bank_edited.json")
